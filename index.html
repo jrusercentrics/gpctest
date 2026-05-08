@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPC + Cookiebot Test Page</title>
+    <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="e2769309-3672-42d4-bc3f-d56333e6a880" data-blockingmode="auto" type="text/javascript"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; padding: 40px 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { font-size: 1.4em; margin-bottom: 8px; }
+        .subtitle { color: #666; margin-bottom: 30px; font-size: 0.9em; }
+        .card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h2 { font-size: 1em; margin-bottom: 12px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        .row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+        .row:last-child { border-bottom: none; }
+        .label { font-weight: 500; }
+        .value { font-family: 'SF Mono', 'Consolas', monospace; font-size: 0.9em; padding: 3px 10px; border-radius: 4px; }
+        .true { background: #dcfce7; color: #166534; }
+        .false { background: #fee2e2; color: #991b1b; }
+        .undefined { background: #f3f4f6; color: #6b7280; }
+        .pending { background: #fef9c3; color: #854d0e; }
+        .banner-status { font-size: 1.1em; padding: 12px 16px; border-radius: 6px; text-align: center; font-weight: 600; }
+        .banner-hidden { background: #dbeafe; color: #1e40af; }
+        .banner-visible { background: #fef3c7; color: #92400e; }
+        .cookie-raw { font-family: monospace; font-size: 0.8em; background: #f9fafb; padding: 12px; border-radius: 6px; word-break: break-all; margin-top: 8px; color: #555; max-height: 120px; overflow-y: auto; }
+        .refresh-btn { background: #4f46e5; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 0.9em; margin-top: 20px; }
+        .refresh-btn:hover { background: #4338ca; }
+        .instructions { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 24px; font-size: 0.85em; line-height: 1.6; }
+        .instructions strong { display: block; margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>GPC + Cookiebot Test Page</h1>
+        <p class="subtitle">Do Not Sell (display banner: false) — Settings ID: e2769309-3672-42d4-bc3f-d56333e6a880</p>
+
+        <div class="instructions">
+            <strong>Como testar:</strong>
+            1. Abre esta página no <b>Chrome</b> (sem GPC) e anota os resultados.<br>
+            2. Abre no <b>Firefox</b> com GPC ativo (Settings → Privacy → "Tell websites not to sell or share my data").<br>
+            3. Compara os valores em ambos os browsers.
+        </div>
+
+        <div class="card">
+            <h2>GPC Signal</h2>
+            <div class="row">
+                <span class="label">navigator.globalPrivacyControl</span>
+                <span class="value pending" id="gpc-value">loading...</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Banner Status</h2>
+            <div id="banner-status" class="banner-status pending">Checking...</div>
+        </div>
+
+        <div class="card">
+            <h2>Cookiebot Consent State</h2>
+            <div class="row">
+                <span class="label">Necessary</span>
+                <span class="value pending" id="consent-necessary">loading...</span>
+            </div>
+            <div class="row">
+                <span class="label">Preferences</span>
+                <span class="value pending" id="consent-preferences">loading...</span>
+            </div>
+            <div class="row">
+                <span class="label">Statistics</span>
+                <span class="value pending" id="consent-statistics">loading...</span>
+            </div>
+            <div class="row">
+                <span class="label">Marketing</span>
+                <span class="value pending" id="consent-marketing">loading...</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>CookieConsent Cookie (raw)</h2>
+            <div class="cookie-raw" id="cookie-raw">loading...</div>
+        </div>
+
+        <div class="card">
+            <h2>dataLayer (Google Consent Mode)</h2>
+            <div id="datalayer-info" class="cookie-raw">loading...</div>
+        </div>
+
+        <button class="refresh-btn" onclick="updateAll()">Refresh Values</button>
+    </div>
+
+    <script>
+        // Initialize dataLayer for GTM consent mode detection
+        window.dataLayer = window.dataLayer || [];
+
+        function getClass(val) {
+            if (val === true) return 'true';
+            if (val === false) return 'false';
+            if (val === undefined || val === null) return 'undefined';
+            return 'pending';
+        }
+
+        function setText(id, val) {
+            var el = document.getElementById(id);
+            var display = (val === undefined || val === null) ? 'undefined' : String(val);
+            el.textContent = display;
+            el.className = 'value ' + getClass(val);
+        }
+
+        function updateAll() {
+            // GPC
+            var gpc = navigator.globalPrivacyControl;
+            setText('gpc-value', gpc);
+
+            // Banner status
+            var bannerEl = document.getElementById('banner-status');
+            var bannerVisible = false;
+            try {
+                bannerVisible = Cookiebot && Cookiebot.dialog && Cookiebot.dialog.visible;
+            } catch(e) {}
+            
+            // Also check if any Cookiebot banner element is visible in DOM
+            var cbBanner = document.getElementById('CybotCookiebotDialog');
+            var domVisible = cbBanner && cbBanner.offsetParent !== null;
+            
+            if (bannerVisible || domVisible) {
+                bannerEl.textContent = 'BANNER VISIBLE';
+                bannerEl.className = 'banner-status banner-visible';
+            } else {
+                bannerEl.textContent = 'BANNER NOT SHOWN';
+                bannerEl.className = 'banner-status banner-hidden';
+            }
+
+            // Consent state
+            try {
+                setText('consent-necessary', Cookiebot.consent.necessary);
+                setText('consent-preferences', Cookiebot.consent.preferences);
+                setText('consent-statistics', Cookiebot.consent.statistics);
+                setText('consent-marketing', Cookiebot.consent.marketing);
+            } catch(e) {
+                ['necessary','preferences','statistics','marketing'].forEach(function(cat) {
+                    var el = document.getElementById('consent-' + cat);
+                    el.textContent = 'Cookiebot not loaded';
+                    el.className = 'value undefined';
+                });
+            }
+
+            // Cookie raw
+            var cookieEl = document.getElementById('cookie-raw');
+            var match = document.cookie.match(/CookieConsent=([^;]+)/);
+            cookieEl.textContent = match ? decodeURIComponent(match[1]) : 'No CookieConsent cookie found';
+
+            // dataLayer
+            var dlEl = document.getElementById('datalayer-info');
+            var consentEntries = window.dataLayer.filter(function(entry) {
+                return entry && (entry[0] === 'consent' || entry.event && entry.event.indexOf('cookie_consent') > -1);
+            });
+            if (consentEntries.length > 0) {
+                dlEl.textContent = JSON.stringify(consentEntries, null, 2);
+            } else {
+                dlEl.textContent = 'No consent entries in dataLayer yet';
+            }
+        }
+
+        // Run on Cookiebot events
+        window.addEventListener('CookiebotOnLoad', function() {
+            setTimeout(updateAll, 500);
+        });
+        window.addEventListener('CookiebotOnAccept', function() {
+            setTimeout(updateAll, 200);
+        });
+        window.addEventListener('CookiebotOnDecline', function() {
+            setTimeout(updateAll, 200);
+        });
+
+        // Fallback: run after page load
+        window.addEventListener('load', function() {
+            setTimeout(updateAll, 1500);
+        });
+    </script>
+</body>
+</html>
